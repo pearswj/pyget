@@ -1,28 +1,60 @@
-from flask import Flask, Response
+from flask import Flask, Response, request, make_response
 from flask.ext.sqlalchemy import SQLAlchemy
+import zipfile, xmltodict, traceback
+from werkzeug import secure_filename
 
 app = Flask(__name__)
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
-#db = SQLAlchemy(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://localhost/pyget'
+db = SQLAlchemy(app)
 
-"""
-class User(db.Model):
+class Package(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True)
-    email = db.Column(db.String(120), unique=True)
+    name = db.Column(db.String(120), unique=True)
+    version = db.Column(db.String(80), unique=True)
 
-    def __init__(self, username, email):
-        self.username = username
-        self.email = email
+    def __init__(self, name, version):
+        self.name = name
+        self.version = version
 
     def __repr__(self):
-        return '<User %r>' % self.username
-"""
+        return '<Package %r %r>' % (self.name, self.version)
+
+    # TODO: one-to-many relationship between package and version?
+    # TODO: store more metadata in db
+
 @app.route('/$metadata')
 def show_metadata():
     with open('metadata.xml', 'r') as f:
         xml = f.read()
         return Response(xml, mimetype='text/xml')
+
+@app.route('/api/v2/package/', methods=['PUT'])
+def upload():
+    try:
+        file = request.files['package']
+        if not file:
+            return 'No package file', 400
+        package = zipfile.ZipFile(file, 'r')
+        nuspec = next((x for x in package.namelist() if x.endswith('.nuspec')), None)
+        if not nuspec:
+            return 'NuSpec file not found in package', 400
+        with package.open(nuspec, 'r') as f:
+            xml = xmltodict.parse(f)
+        metadata = xml['package']['metadata']
+        name = metadata['id'] + '.' + metadata['version'] + '.nupkg'
+        filename = secure_filename(name)
+        # TODO: push this file to s3 and remember its location
+        pkg = Package.query.filter_by(name=metadata['id'], version=metadata['version']).first()
+        if pkg:
+            return 'This package version already exists', 409
+        pkg = Package(metadata['id'], metadata['version'])
+        db.session.add(pkg)
+        db.session.commit()
+        # TODO: add more metadata to db
+    except:
+        traceback.print_exc()
+        return 'Error pushing package', 500
+    return "Created", 201
 
 @app.route('/ping')
 def ping():

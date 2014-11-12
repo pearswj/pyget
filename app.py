@@ -9,6 +9,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://localhost/pyget'
 db = SQLAlchemy(app)
 
 app.config['DEBUG'] = os.environ.get('DEBUG', False)
+app.config['NUGET_API_KEY'] = os.environ.get('NUGET_API_KEY')
+if not app.config['NUGET_API_KEY']:
+    raise Exception('NUGET_API_KEY setting is required')
 
 class Package(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -34,6 +37,9 @@ def show_metadata():
 @app.route('/api/v2/package/', methods=['PUT'])
 def upload():
     try:
+        key = request.headers.get('X_NUGET_APIKEY')
+        if not key or key != app.config['NUGET_API_KEY']:
+            return 'Invalid or missing API key', 403
         file = request.files['package']
         if not file:
             return 'No package file', 400

@@ -56,6 +56,21 @@ def upload():
         return 'Error pushing package', 500
     return "Created", 201
 
+@app.route('/api/v2/package/<name>/<version>', methods=['DELETE'])
+def delete(name, version):
+    try:
+        pkg = Package.query.filter_by(name=name, version=version).first()
+        if pkg:
+            db.session.delete(pkg)
+            db.session.commit()
+            # TODO: remove .nupkg from s3
+            return 'Deleted', 204
+        else:
+            return 'No package by this name and with this version', 400
+    except:
+        traceback.print_exc()
+        return 'Error deleting package', 500
+
 @app.route('/ping')
 def ping():
     return "pong"

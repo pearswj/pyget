@@ -2,10 +2,13 @@ from flask import Flask, Response, request, make_response
 from flask.ext.sqlalchemy import SQLAlchemy
 import zipfile, xmltodict, traceback
 from werkzeug import secure_filename
+import os
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://localhost/pyget'
 db = SQLAlchemy(app)
+
+app.config['DEBUG'] = os.environ.get('DEBUG', False)
 
 class Package(db.Model):
     id = db.Column(db.Integer, primary_key=True)

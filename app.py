@@ -36,18 +36,18 @@ def show_metadata():
 
 @app.route('/', methods=['GET'])
 def index():
-    xml = """<?xml version='1.0' encoding='utf-8' standalone='yes'?>"
-    <service xml:base="{base_url}"
-        xmlns:atom="http://www.w3.org/2005/Atom"
-        xmlns:app="http://www.w3.org/2007/app"
-        xmlns="http://www.w3.org/2007/app">
-      <workspace>
-        <atom:title>Default</atom:title>
-        <collection href="Packages">
-          <atom:title>Packages</atom:title>
-        </collection>
-      </workspace>
-    </service>""".format(base_url=request.base_url)
+    xml = """<?xml version='1.0' encoding='utf-8' standalone='yes'?>
+<service xml:base="{base_url}"
+    xmlns:atom="http://www.w3.org/2005/Atom"
+    xmlns:app="http://www.w3.org/2007/app"
+    xmlns="http://www.w3.org/2007/app">
+  <workspace>
+    <atom:title>Default</atom:title>
+    <collection href="Packages">
+      <atom:title>Packages</atom:title>
+    </collection>
+  </workspace>
+</service>""".format(base_url=request.base_url)
     return Response(xml, mimetype='text/xml')
 
 @app.route('/api/v2/package/', methods=['PUT'])

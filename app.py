@@ -105,6 +105,21 @@ def index():
 </service>""".format(base_url=request.base_url)
     return Response(xml, mimetype='text/xml')
 
+@app.route('/FindPackagesById()')
+@app.route('/Search()')
+@app.route('/Search()/$count')
+@app.route('/Packages()')
+def search():
+    print request.args
+    # TODO: implement routes
+    return "Nothing to see here, yet!", 501
+
+@app.route('/download/<id>/<version>')
+@app.route('/api/v2/Packages(Id=\'<id>\',Version=\'<version>\')')
+def packages(id, version):
+    # TODO: implement routes
+    return "Nothing to see here, yet!", 501
+
 @app.route('/api/v2/package/', methods=['PUT'])
 def upload():
     try:

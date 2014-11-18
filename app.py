@@ -3,6 +3,7 @@ from flask.ext.sqlalchemy import SQLAlchemy
 import zipfile, xmltodict, traceback
 from werkzeug import secure_filename
 import os
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://localhost/pyget'
@@ -14,19 +15,73 @@ if not app.config['NUGET_API_KEY']:
     raise Exception('NUGET_API_KEY setting is required')
 
 class Package(db.Model):
+    __tablename__ = 'packages'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), unique=True)
-    version = db.Column(db.String(80), unique=True)
+    name = db.Column(db.String(), unique=True)
+    updated = db.Column(db.DateTime())
+    authors = db.Column(db.String()) # TODO: multiple authors
 
-    def __init__(self, name, version):
-        self.name = name
-        self.version = version
+    # one-to-many relationship with versions
+    versions = db.relationship('Version', backref='package', lazy="dynamic")
 
     def __repr__(self):
-        return '<Package %r %r>' % (self.name, self.version)
+        return '<Package %r>' % (self.name)
 
-    # TODO: one-to-many relationship between package and version?
-    # TODO: store more metadata in db
+class Version(db.Model):
+    __tablename__ = 'versions'
+    id = db.Column(db.Integer, primary_key=True)
+    version = db.Column(db.String(), nullable=False) # unique (see below)
+    # normalized_version
+    copyright = db.Column(db.String())
+    created = db.Column(db.DateTime())
+    #dependencies = db.Column(db.String()) # TODO: dependencies
+    description = db.Column(db.String())
+    # download_count
+    # gallery_details_url
+    icon_url = db.Column(db.String())
+    # is_latest_version
+    # is_absolute_latest_version
+    is_prerelease = db.Column(db.Boolean())
+    # langauge
+    # published
+    package_hash = db.Column(db.String())
+    package_hash_algorithm = db.Column(db.String())
+    package_size = db.Column(db.Integer())
+    project_url = db.Column(db.String())
+    # report_abuse_url
+    release_notes = db.Column(db.String())
+    require_license_acceptance = db.Column(db.Boolean())
+    summary = db.Column(db.String())
+    tags = db.Column(db.String()) # TODO: split tags
+    title = db.Column(db.String())
+    # version_download_count
+    # min_client_version
+    # last_edited
+    license_url = db.Column(db.String())
+    license_names = db.Column(db.String())
+    # license_report_url
+
+    # foreign key for parent package
+    _package_id = db.Column(db.Integer, db.ForeignKey('packages.id'), nullable=False)
+
+    # composite unique constraint: version AND package
+    __table_args__ = (
+        db.UniqueConstraint('version', '_package_id', name='_package_version_uc'),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super(Version, self).__init__(*args, **kwargs)
+        self.created = datetime.utcnow()
+
+    def __repr__(self):
+        return '<Version %r %r>' % (self.package.name, self.version)
+
+class Author(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(), unique=True)
+
+    def __repr__(self):
+        return '<Author %r>' % (self.name)
 
 @app.route('/$metadata')
 def show_metadata():
@@ -69,11 +124,20 @@ def upload():
         name = metadata['id'] + '.' + metadata['version'] + '.nupkg'
         filename = secure_filename(name)
         # TODO: push this file to s3 and remember its location
-        pkg = Package.query.filter_by(name=metadata['id'], version=metadata['version']).first()
-        if pkg:
-            return 'This package version already exists', 409
-        pkg = Package(metadata['id'], metadata['version'])
-        db.session.add(pkg)
+        # check for existance of package
+        pkg = Package.query.filter_by(name=metadata['id']).first()
+        if not pkg:
+            # create package
+            pkg = Package(name=metadata['id'])
+            db.session.add(pkg)
+            #db.session.commit()
+        else:
+            # check for existance of version
+            ver = pkg.versions.filter_by(version=metadata['version']).first()
+            if ver:
+                return 'This package version already exists', 409
+        ver = Version(package=pkg, version=metadata['version'])
+        db.session.add(ver)
         db.session.commit()
         # TODO: add more metadata to db
     except:
@@ -84,14 +148,18 @@ def upload():
 @app.route('/api/v2/package/<name>/<version>', methods=['DELETE'])
 def delete(name, version):
     try:
-        pkg = Package.query.filter_by(name=name, version=version).first()
+        pkg = Package.query.filter_by(name=name).first()
         if pkg:
-            db.session.delete(pkg)
-            db.session.commit()
-            # TODO: remove .nupkg from s3
-            return 'Deleted', 204
-        else:
-            return 'No package by this name and with this version', 400
+            ver = pkg.versions.filter_by(version=version).first()
+            if ver:
+                db.session.delete(ver)
+                #db.session.commit()
+                if len(pkg.versions.all()) < 1:
+                    db.session.delete(pkg)
+                db.session.commit()
+                # TODO: remove .nupkg from s3
+                return 'Deleted', 204
+        return 'No package by this name and with this version', 400
     except:
         traceback.print_exc()
         return 'Error deleting package', 500

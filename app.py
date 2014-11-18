@@ -148,6 +148,9 @@ def upload():
 @app.route('/api/v2/package/<name>/<version>', methods=['DELETE'])
 def delete(name, version):
     try:
+        key = request.headers.get('X_NUGET_APIKEY')
+        if not key or key != app.config['NUGET_API_KEY']:
+            return 'Invalid or missing API key', 403
         pkg = Package.query.filter_by(name=name).first()
         if pkg:
             ver = pkg.versions.filter_by(version=version).first()

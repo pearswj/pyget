@@ -4,6 +4,7 @@ import zipfile, xmltodict, traceback
 from werkzeug import secure_filename
 import os
 from datetime import datetime
+import semantic_version as sem_ver
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://localhost/pyget'
@@ -14,15 +15,29 @@ app.config['NUGET_API_KEY'] = os.environ.get('NUGET_API_KEY')
 if not app.config['NUGET_API_KEY']:
     raise Exception('NUGET_API_KEY setting is required')
 
+# see http://docs.nuget.org/docs/reference/nuspec-reference
+
 class Package(db.Model):
     __tablename__ = 'packages'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), unique=True)
     updated = db.Column(db.DateTime())
     authors = db.Column(db.String()) # TODO: multiple authors
+    #latest_version = db.relationship('Version')
 
     # one-to-many relationship with versions
-    versions = db.relationship('Version', backref='package', lazy="dynamic")
+    versions = db.relationship('Version', backref='package', lazy='dynamic')
+
+    def get_sorted_versions(self):
+        return sorted(
+            self.versions.all(),
+            key=lambda x: sem_ver.Version(x.normalized_version),
+            reverse=True)
+
+    #def update_latest_version(self):
+    #    vers = self.get_sorted_versions()
+    #    if len(vers):
+    #        self.latest_version = vers[0]
 
     def __repr__(self):
         return '<Package %r>' % (self.name)
@@ -31,10 +46,13 @@ class Version(db.Model):
     __tablename__ = 'versions'
     id = db.Column(db.Integer, primary_key=True)
     version = db.Column(db.String(), nullable=False) # unique (see below)
-    # normalized_version
+    # normalized_version, see https://github.com/NuGet/NuGetGallery/pull/1573
+    normalized_version = db.Column(db.String())
     copyright = db.Column(db.String())
     created = db.Column(db.DateTime())
-    #dependencies = db.Column(db.String()) # TODO: dependencies
+    # TODO: dependencies
+    # store version spec separately, to be queried at install-time
+    #dependencies = db.relationship('Package')
     description = db.Column(db.String())
     # download_count
     # gallery_details_url
@@ -88,6 +106,13 @@ def show_metadata():
     with open('metadata.xml', 'r') as f:
         xml = f.read()
         return Response(xml, mimetype='text/xml')
+
+def coerce_version(ver_str):
+    """Attempts to return a Sem Ver compliant version string."""
+    try:
+        return str(sem_ver.Version.coerce(ver_str))
+    except:
+        return None
 
 @app.route('/', methods=['GET'])
 def index():
@@ -151,7 +176,12 @@ def upload():
             ver = pkg.versions.filter_by(version=metadata['version']).first()
             if ver:
                 return 'This package version already exists', 409
-        ver = Version(package=pkg, version=metadata['version'])
+        # add the package version to the db
+        ver = Version(
+            package=pkg,
+            version=metadata['version'],
+            normalized_version=coerce_version(metadata['version']),
+            )
         db.session.add(ver)
         db.session.commit()
         # TODO: add more metadata to db

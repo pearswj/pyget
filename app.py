@@ -109,8 +109,27 @@ def show_metadata():
 
 def coerce_version(ver_str):
     """Attempts to return a Sem Ver compliant version string."""
+    # see https://github.com/NuGet/NuGetGallery/pull/1573
+    if '-' in ver_str:
+        tmp = ver_str.split('-', 1)
+        tmp = [tmp[0], '-', tmp[1]]
+    elif '+' in ver_str:
+        tmp = ver_str.split('+', 1)
+        tmp = [tmp[0], '+', tmp[1]]
+    else:
+        tmp = [ver_str]
+
+    tmp2 = tmp[0].split('.')
+    tmp2 = [x.lstrip('0') for x in tmp2]
+    tmp2 = [x if x else '0' for x in tmp2]
+
+    if len(tmp) > 1:
+        tmp = ['.'.join(tmp2)] + tmp[1:]
+
+    tmp = ''.join(tmp)
+
     try:
-        return str(sem_ver.Version.coerce(ver_str))
+        return str(sem_ver.Version.coerce(tmp))
     except:
         return None
 

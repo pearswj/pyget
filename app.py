@@ -7,13 +7,24 @@ from datetime import datetime
 import semantic_version as sem_ver
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://localhost/pyget'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 db = SQLAlchemy(app)
 
 app.config['DEBUG'] = os.environ.get('DEBUG', False)
 app.config['NUGET_API_KEY'] = os.environ.get('NUGET_API_KEY')
 if not app.config['NUGET_API_KEY']:
     raise Exception('NUGET_API_KEY setting is required')
+app.config['S3_BUCKET'] = os.environ.get('S3_BUCKET')
+if app.config['S3_BUCKET']:
+    import boto
+    s3 = boto.connect_s3(os.environ.get('S3_KEY'), os.environ.get('S3_SECRET'))
+    try:
+        bucket = s3.get_bucket(app.config['S3_BUCKET'])
+    except boto.exception.S3ResponseError as e:
+        print 'Bucket not found so I\'m creating one for you'
+        bucket = s3.create_bucket(app.config['S3_BUCKET'])
+else:
+    raise Exception('S3_BUCKET setting is required')
 
 # see http://docs.nuget.org/docs/reference/nuspec-reference
 

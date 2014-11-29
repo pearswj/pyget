@@ -193,7 +193,6 @@ def upload():
         metadata = xml['package']['metadata']
         name = metadata['id'] + '.' + metadata['version'] + '.nupkg'
         filename = secure_filename(name)
-        # TODO: push this file to s3 and remember its location
         # check for existance of package
         pkg = Package.query.filter_by(name=metadata['id']).first()
         if not pkg:
@@ -206,6 +205,9 @@ def upload():
             ver = pkg.versions.filter_by(version=metadata['version']).first()
             if ver:
                 return 'This package version already exists', 409
+        # push package to s3
+        key = bucket.new_key(filename)
+        key.set_contents_from_file(file)
         # add the package version to the db
         ver = Version(
             package=pkg,

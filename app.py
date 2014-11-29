@@ -232,12 +232,15 @@ def delete(name, version):
         if pkg:
             ver = pkg.versions.filter_by(version=version).first()
             if ver:
+                # remove nupkg from s3
+                key = ver.package.name + '.' + ver.version + '.nupkg'
+                bucket.delete_key(key)
+                # remove package version from db
                 db.session.delete(ver)
                 #db.session.commit()
                 if len(pkg.versions.all()) < 1:
                     db.session.delete(pkg)
                 db.session.commit()
-                # TODO: remove .nupkg from s3
                 return 'Deleted', 204
         return 'No package by this name and with this version', 400
     except:

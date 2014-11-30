@@ -5,6 +5,7 @@ from werkzeug import secure_filename
 import os
 from datetime import datetime
 import semantic_version as sem_ver
+import pystache
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
@@ -105,6 +106,41 @@ class Version(db.Model):
     def __repr__(self):
         return '<Version %r %r>' % (self.package.name, self.version)
 
+    def to_json(self):
+        json = {
+            'author': self.package.authors,
+            'version': self.version,
+            'normalised_version': self.normalized_version,
+            'copyright': self.copyright,
+            'created': self.created.isoformat() + 'Z',
+            # dependencies
+            'description': self.description,
+            # download_count
+            #'gallery_details_url': None,
+            #'icon_url': None,
+            # is_latest_version
+            # is_absolute_latest_version
+            'is_prerelease': self.is_prerelease,
+            # langauge
+            # published
+            'package_hash': None,
+            'package_hash_algorithm': 'SHA512',
+            #'package_size': package_size,
+            'project_url': self.project_url,
+            # report_abuse_url
+            #'release_notes': release_notes,
+            #'require_license_acceptance': require_license_acceptance,
+            #'summary': summary,
+            'tags': self.tags,
+            'title': self.title,
+            # version_download_count
+            # min_client_version
+            # last_edited
+            'license_url': self.license_url,
+            'license_names': self.license_names,
+            # license_report_url
+        }
+
 class Author(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), unique=True)
@@ -160,7 +196,6 @@ def index():
 </service>""".format(base_url=request.base_url)
     return Response(xml, mimetype='text/xml')
 
-@app.route('/FindPackagesById()')
 @app.route('/Search()')
 @app.route('/Search()/$count')
 @app.route('/Packages()')
@@ -246,6 +281,24 @@ def delete(name, version):
     except:
         traceback.print_exc()
         return 'Error deleting package', 500
+
+@app.route('/FindPackagesById()')
+def find():
+    env = {
+        'base_url': '/'.join(request.base_url.split('/')[:-1]),
+        'id_url': request.base_url.strip('()'),
+        'title': 'FindPackagesById',
+        'updated': datetime.utcnow().isoformat() + 'Z',
+        'entries': []
+    }
+    if 'id' in request.args:
+        name = request.args['id'].strip('\'')
+        pkg = Package.query.filter_by(name=name).first()
+        if pkg:
+            env['entries'] = [ver.to_json() for ver in pkg.versions.all()]
+    renderer = pystache.Renderer()
+    xml = renderer.render_path('feed.mustache', env)
+    return Response(xml, mimetype='text/xml')
 
 @app.route('/ping')
 def ping():

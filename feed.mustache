@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<feed xml:base="{{base}}" xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
-  <id>{{id}}</id>
+<feed xml:base="{{base_url}}" xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+  <id>{{id_url}}</id>
   <title type="text">{{title}}</title>
   <updated>{{updated}}</updated>
   <link rel="self" title="{{title}}" href="{{title}}" />
   {{#entries}}
   <entry>
-    <id>{{id}}</id>
+    <id>{{id_url}}</id>
     <category term="NuGetGallery.V2FeedPackage" scheme="http://schemas.microsoft.com/ado/2007/08/dataservices/scheme" />
     <link rel="edit" title="V2FeedPackage" href="{{link_edit}}" />
     <title type="text">{{title}}</title>

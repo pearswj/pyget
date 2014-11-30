@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<feed xml:base="{{base}}" xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+  <id>{{id}}</id>
+  <title type="text">{{title}}</title>
+  <updated>{{updated}}</updated>
+  <link rel="self" title="{{title}}" href="{{title}}" />
+  {{#entries}}
+  <entry>
+    <id>{{id}}</id>
+    <category term="NuGetGallery.V2FeedPackage" scheme="http://schemas.microsoft.com/ado/2007/08/dataservices/scheme" />
+    <link rel="edit" title="V2FeedPackage" href="{{link_edit}}" />
+    <title type="text">{{title}}</title>
+    <summary type="text">{{summary}}</summary>
+    <updated>{{updated}}</updated>
+    <author>
+      <name>{{author}}</name>
+    </author>
+    <link rel="edit-media" title="V2FeedPackage" href="{{link_edit_media}}" />
+    <content type="application/zip" src="{{content}}" />
+    <m:properties>
+      <d:Version>{{version}}</d:Version>
+      <d:NormalizedVersion>{{normalised_version}}</d:NormalizedVersion>
+      <d:Copyright m:null="true" />
+      <d:Created m:type="Edm.DateTime">{{created}}</d:Created>
+      <d:Dependencies></d:Dependencies>
+      <d:Description>{{description}}</d:Description>
+      <d:DownloadCount m:type="Edm.Int32">{{download_count}}</d:DownloadCount>
+      <d:GalleryDetailsUrl>http://www.nuget.org/packages/Rhino3dmIO.dll-x64-Windows/1.0.0</d:GalleryDetailsUrl>
+      <d:IconUrl>http://wiki.mcneel.com/_media/rhino_discourse_small.png</d:IconUrl>
+      <d:IsLatestVersion m:type="Edm.Boolean">{{is_latest_version}}</d:IsLatestVersion>
+      <d:IsAbsoluteLatestVersion m:type="Edm.Boolean">{{is_absolute_latest_version}}</d:IsAbsoluteLatestVersion>
+      <d:IsPrerelease m:type="Edm.Boolean">{{is_prerelease}}</d:IsPrerelease>
+      <d:Language m:null="true" />
+      <d:Published m:type="Edm.DateTime">{{published}}</d:Published>
+      <d:PackageHash>{{packge_hash}}</d:PackageHash>
+      <d:PackageHashAlgorithm>{{package_hash_algorithm}}</d:PackageHashAlgorithm>
+      <d:PackageSize m:type="Edm.Int64">{{package_size}}</d:PackageSize>
+      <d:ProjectUrl>{{project_url}}</d:ProjectUrl>
+      <d:ReportAbuseUrl>{{report_abuse_url}}</d:ReportAbuseUrl>
+      <d:ReleaseNotes>{{release_notes}}</d:ReleaseNotes>
+      <d:RequireLicenseAcceptance m:type="Edm.Boolean">{{require_license_acceptance}}</d:RequireLicenseAcceptance>
+      <d:Summary m:null="true" />
+      <d:Tags>{{tags}}</d:Tags>
+      <d:Title m:null="true" />
+      <d:VersionDownloadCount m:type="Edm.Int32">{{version_download_count}}</d:VersionDownloadCount>
+      <d:MinClientVersion m:null="true" />
+      <d:LastEdited m:type="Edm.DateTime" m:null="true" />
+      <d:LicenseUrl>{{license_url}}</d:LicenseUrl>
+      <d:LicenseNames>{{license_names}}</d:LicenseNames>
+      <d:LicenseReportUrl>{{license_report_url}}</d:LicenseReportUrl>
+    </m:properties>
+  </entry>
+  {{/entries}}
+</feed>

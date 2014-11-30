@@ -4,13 +4,20 @@ A lightweight nuget server written in Python, intended for deployment to Heroku.
 
 ## Usage
 
-Start with `foreman run python app.py`.
+For local testing, start with `foreman run python app.py`.
 
-Configure with environment variables, stored in `.env` for local use.
+Configure with environment variables, stored in `.env`, for example:
 
 ```
+# required
+NUGET_API_KEY=somethingsecret
+S3_BUCKET=bucket
+S3_KEY=bla
+S3_SECRET=61a
+DATABASE_URL=postgres://localhost/pyget
+
+# optional
 DEBUG=True
-NUGET_API_KEY=somethingsecret # required
 FLASK_PORT=80
 ```
 

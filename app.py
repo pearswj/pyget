@@ -113,34 +113,35 @@ class Version(db.Model):
             'version': self.version,
             'normalised_version': self.normalized_version,
             'copyright': '',
-            'created': self.created.isoformat() + 'Z',
+            'created': self.created.isoformat(),
             'dependencies': '',
             'description': '',
             'download_count': 0,
             #'gallery_details_url': None,
             #'icon_url': None,
-            # is_latest_version
-            # is_absolute_latest_version
+            'is_latest_version': 'false',
+            'is_absolute_latest_version': 'false',
             'is_prerelease': 'false',
             'langauge' : None,
-            # published
+            'published': '1900-01-01T00:00:00',
             'package_hash': self.package_hash,
             'package_hash_algorithm': 'SHA512',
-            #'package_size': package_size,
-            'project_url': self.project_url,
-            # report_abuse_url
-            #'release_notes': release_notes,
-            #'require_license_acceptance': require_license_acceptance,
-            #'summary': summary,
-            'tags': self.tags,
+            'package_size': self.package_size,
+            'project_url': '', #self.project_url,
+            'report_abuse_url': '',
+            'release_notes': '', #self.release_notes,
+            'require_license_acceptance': 'false',
+            'summary': '',
+            'tags': '',
             'title': self.package.name,
             'version_download_count': 0,
             # min_client_version
             # last_edited
-            'license_url': self.license_url,
-            'license_names': self.license_names,
+            'license_url': '',
+            'license_names': '',
             # license_report_url
-            'content': "https://s3-eu-west-1.amazonaws.com/{0}/".format(app.config['S3_BUCKET']) + self.package.name + '.' + self.version + '.nupkg'
+            'content': "https://s3-eu-west-1.amazonaws.com/{0}/".format(app.config['S3_BUCKET']) + self.package.name + '.' + self.version + '.nupkg',
+            'link_edit': 'Package(Id=\'{0})\',Version=\'{1}\')'.format(self.package.name, self.version)
         }
 
 class Author(db.Model):
@@ -251,6 +252,7 @@ def upload():
             normalized_version=coerce_version(metadata['version']),
             package_size=os.fstat(file.fileno()).st_size,
             package_hash=base64.b64encode(hashlib.sha512(filename).digest()),
+            #tags='',
             )
         db.session.add(ver)
         db.session.commit()
@@ -292,7 +294,7 @@ def find():
         'base_url': '/'.join(request.base_url.split('/')[:-1]),
         'id_url': request.base_url.strip('()'),
         'title': 'FindPackagesById',
-        'updated': datetime.utcnow().isoformat() + 'Z',
+        'updated': datetime.utcnow().isoformat(),
         'entries': []
     }
     if 'id' in request.args:
@@ -312,7 +314,7 @@ def find():
         print env['entries']
     renderer = pystache.Renderer()
     xml = renderer.render_path('feed.mustache', env)
-    return Response(xml, mimetype='text/xml')
+    return Response(xml, mimetype='application/atom+xml')
 
 @app.route('/ping')
 def ping():

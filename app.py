@@ -107,7 +107,7 @@ class Version(db.Model):
         return '<Version %r %r>' % (self.package.name, self.version)
 
     def to_json(self):
-        json = {
+        return {
             'author': self.package.authors,
             'version': self.version,
             'normalised_version': self.normalized_version,
@@ -132,13 +132,14 @@ class Version(db.Model):
             #'require_license_acceptance': require_license_acceptance,
             #'summary': summary,
             'tags': self.tags,
-            'title': self.title,
+            'title': self.package.name,
             # version_download_count
             # min_client_version
             # last_edited
             'license_url': self.license_url,
             'license_names': self.license_names,
             # license_report_url
+            'content': "https://s3-eu-west-1.amazonaws.com/{0}/".format(app.config['S3_BUCKET']) + self.package.name + '.' + self.version + '.nupkg'
         }
 
 class Author(db.Model):
@@ -196,7 +197,6 @@ def index():
 </service>""".format(base_url=request.base_url)
     return Response(xml, mimetype='text/xml')
 
-@app.route('/Search()')
 @app.route('/Search()/$count')
 @app.route('/Packages()')
 def search():
@@ -282,6 +282,7 @@ def delete(name, version):
         traceback.print_exc()
         return 'Error deleting package', 500
 
+@app.route('/Search()')
 @app.route('/FindPackagesById()')
 def find():
     env = {
@@ -294,8 +295,11 @@ def find():
     if 'id' in request.args:
         name = request.args['id'].strip('\'')
         pkg = Package.query.filter_by(name=name).first()
-        if pkg:
-            env['entries'] = [ver.to_json() for ver in pkg.versions.all()]
+    elif 'searchTerm' in request.args:
+        name = request.args['searchTerm'].strip('\'')
+        pkg = Package.query.filter_by(name=name).first() # TODO: .all()
+    if pkg:
+        env['entries'] = [ver.to_json() for ver in pkg.versions.all()]
     renderer = pystache.Renderer()
     xml = renderer.render_path('feed.mustache', env)
     return Response(xml, mimetype='text/xml')

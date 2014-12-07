@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 import semantic_version as sem_ver
 import pystache
+import hashlib, base64
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
@@ -108,22 +109,22 @@ class Version(db.Model):
 
     def to_json(self):
         return {
-            'author': self.package.authors,
+            'author': 'test',
             'version': self.version,
             'normalised_version': self.normalized_version,
-            'copyright': self.copyright,
+            'copyright': '',
             'created': self.created.isoformat() + 'Z',
-            # dependencies
-            'description': self.description,
-            # download_count
+            'dependencies': '',
+            'description': '',
+            'download_count': 0,
             #'gallery_details_url': None,
             #'icon_url': None,
             # is_latest_version
             # is_absolute_latest_version
-            'is_prerelease': self.is_prerelease,
-            # langauge
+            'is_prerelease': 'false',
+            'langauge' : None,
             # published
-            'package_hash': None,
+            'package_hash': self.package_hash,
             'package_hash_algorithm': 'SHA512',
             #'package_size': package_size,
             'project_url': self.project_url,
@@ -133,7 +134,7 @@ class Version(db.Model):
             #'summary': summary,
             'tags': self.tags,
             'title': self.package.name,
-            # version_download_count
+            'version_download_count': 0,
             # min_client_version
             # last_edited
             'license_url': self.license_url,
@@ -248,6 +249,8 @@ def upload():
             package=pkg,
             version=metadata['version'],
             normalized_version=coerce_version(metadata['version']),
+            package_size=os.fstat(file.fileno()).st_size,
+            package_hash=base64.b64encode(hashlib.sha512(filename).digest()),
             )
         db.session.add(ver)
         db.session.commit()
@@ -294,12 +297,19 @@ def find():
     }
     if 'id' in request.args:
         name = request.args['id'].strip('\'')
-        pkg = Package.query.filter_by(name=name).first()
+        pkgs = Package.query.filter_by(name=name).all()
     elif 'searchTerm' in request.args:
         name = request.args['searchTerm'].strip('\'')
-        pkg = Package.query.filter_by(name=name).first() # TODO: .all()
-    if pkg:
-        env['entries'] = [ver.to_json() for ver in pkg.versions.all()]
+        if name:
+            pkgs = Package.query.filter_by(name=name).all()
+        else:
+            pkgs = Package.query.all()
+    print pkgs
+    if pkgs and len(pkgs) > 0:
+        env['entries'] = []
+        for pkg in pkgs:
+            env['entries'].extend([ver.to_json() for ver in pkg.versions.all()])
+        print env['entries']
     renderer = pystache.Renderer()
     xml = renderer.render_path('feed.mustache', env)
     return Response(xml, mimetype='text/xml')

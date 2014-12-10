@@ -2,6 +2,8 @@
 
 A lightweight nuget server written in Python, intended for deployment to Heroku.
 
+Not all routes are currently implemented, so use with caution.
+
 ## Usage
 
 For local testing, start with `foreman run python app.py`.

@@ -6,7 +6,7 @@
   <link rel="self" title="{{title}}" href="{{title}}" />
   {{#entries}}
   <entry>
-    <id>{{id_url}}</id>
+    <id>{{base_url}}/{{link_edit}}</id>
     <category term="NuGetGallery.V2FeedPackage" scheme="http://schemas.microsoft.com/ado/2007/08/dataservices/scheme" />
     <link rel="edit" title="V2FeedPackage" href="{{link_edit}}" />
     <title type="text">{{title}}</title>
@@ -30,7 +30,7 @@
       <d:IsPrerelease m:type="Edm.Boolean">{{is_prerelease}}</d:IsPrerelease>
       <d:Language m:null="true" />
       <d:Published m:type="Edm.DateTime">{{published}}</d:Published>
-      <d:PackageHash>{{packge_hash}}</d:PackageHash>
+      <d:PackageHash>{{package_hash}}</d:PackageHash>
       <d:PackageHashAlgorithm>{{package_hash_algorithm}}</d:PackageHashAlgorithm>
       <d:PackageSize m:type="Edm.Int64">{{package_size}}</d:PackageSize>
       <d:ProjectUrl>{{project_url}}</d:ProjectUrl>

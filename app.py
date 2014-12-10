@@ -119,8 +119,8 @@ class Version(db.Model):
             'download_count': 0,
             #'gallery_details_url': None,
             #'icon_url': None,
-            'is_latest_version': 'false',
-            'is_absolute_latest_version': 'false',
+            'is_latest_version': 'true',
+            'is_absolute_latest_version': 'true',
             'is_prerelease': 'false',
             'langauge' : None,
             'published': '1900-01-01T00:00:00',
@@ -139,9 +139,9 @@ class Version(db.Model):
             # last_edited
             'license_url': '',
             'license_names': '',
-            # license_report_url
+            'license_report_url': '',
             'content': "https://s3-eu-west-1.amazonaws.com/{0}/".format(app.config['S3_BUCKET']) + self.package.name + '.' + self.version + '.nupkg',
-            'link_edit': 'Package(Id=\'{0})\',Version=\'{1}\')'.format(self.package.name, self.version)
+            'link_edit': 'Packages(Id=\'{0}\',Version=\'{1}\')'.format(self.package.name, self.version)
         }
 
 class Author(db.Model):
@@ -293,7 +293,7 @@ def find():
     env = {
         'base_url': '/'.join(request.base_url.split('/')[:-1]),
         'id_url': request.base_url.strip('()'),
-        'title': 'FindPackagesById',
+        'title': 'Search',
         'updated': datetime.utcnow().isoformat(),
         'entries': []
     }
@@ -306,12 +306,11 @@ def find():
             pkgs = Package.query.filter_by(name=name).all()
         else:
             pkgs = Package.query.all()
-    print pkgs
+    #print pkgs
     if pkgs and len(pkgs) > 0:
         env['entries'] = []
         for pkg in pkgs:
             env['entries'].extend([ver.to_json() for ver in pkg.versions.all()])
-        print env['entries']
     renderer = pystache.Renderer()
     xml = renderer.render_path('feed.mustache', env)
     return Response(xml, mimetype='application/atom+xml')

@@ -123,7 +123,7 @@ class Version(db.Model):
             'is_absolute_latest_version': 'true',
             'is_prerelease': 'false',
             'langauge' : None,
-            'published': '1900-01-01T00:00:00',
+            'published': self.created.isoformat(),
             'package_hash': self.package_hash,
             'package_hash_algorithm': 'SHA512',
             'package_size': self.package_size,

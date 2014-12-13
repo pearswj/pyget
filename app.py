@@ -19,9 +19,11 @@ if not app.config['NUGET_API_KEY']:
 app.config['S3_BUCKET'] = os.environ.get('S3_BUCKET')
 if app.config['S3_BUCKET']:
     import boto
+    print 'Connecting to S3...'
     s3 = boto.connect_s3(os.environ.get('S3_KEY'), os.environ.get('S3_SECRET'))
     try:
         bucket = s3.get_bucket(app.config['S3_BUCKET'])
+        print 'Connected to S3!'
     except boto.exception.S3ResponseError as e:
         print 'Bucket not found so I\'m creating one for you'
         bucket = s3.create_bucket(app.config['S3_BUCKET'])
@@ -207,10 +209,24 @@ def search():
     return "Nothing to see here, yet!", 501
 
 @app.route('/download/<id>/<version>')
-@app.route('/api/v2/Packages(Id=\'<id>\',Version=\'<version>\')')
-def packages(id, version):
+def download(id, version):
     # TODO: implement routes
     return "Nothing to see here, yet!", 501
+
+@app.route('/Packages(Id=\'<id>\',Version=\'<version>\')')
+def packages(id, version):
+    print id, version
+    pkg = Package.query.filter_by(name=id).first()
+    if pkg:
+        ver = pkg.versions.filter_by(version=version).first()
+        if ver:
+            print pkg, ver
+            env = ver.to_json()
+            env['base_url'] = '/'.join(request.base_url.split('/')[:-1])
+            renderer = pystache.Renderer()
+            xml = renderer.render_path('packages.mustache', env)
+            return Response(xml, mimetype='application/atom+xml')
+    return 'No package by this name and with this version', 404
 
 @app.route('/api/v2/package/', methods=['PUT'])
 def upload():
@@ -293,7 +309,7 @@ def find():
     env = {
         'base_url': '/'.join(request.base_url.split('/')[:-1]),
         'id_url': request.base_url.strip('()'),
-        'title': 'Search',
+        'title': request.base_url.strip('()').split('/')[-1],
         'updated': datetime.utcnow().isoformat(),
         'entries': []
     }
@@ -303,7 +319,7 @@ def find():
     elif 'searchTerm' in request.args:
         name = request.args['searchTerm'].strip('\'')
         if name:
-            pkgs = Package.query.filter_by(name=name).all()
+            pkgs = Package.query.filter_by(name=name).all() # TODO: partials
         else:
             pkgs = Package.query.all()
     #print pkgs

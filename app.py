@@ -1,4 +1,4 @@
-from flask import Flask, Response, request, make_response
+from flask import Flask, Response, request, make_response, send_file
 from flask.ext.sqlalchemy import SQLAlchemy
 import zipfile, xmltodict, traceback
 from werkzeug import secure_filename
@@ -7,6 +7,7 @@ from datetime import datetime
 import semantic_version as sem_ver
 import pystache
 import hashlib, base64
+import io
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
@@ -208,19 +209,27 @@ def search():
     # TODO: implement routes
     return "Nothing to see here, yet!", 501
 
-@app.route('/download/<id>/<version>')
+@app.route('/package/<id>/<version>')
 def download(id, version):
-    # TODO: implement routes
-    return "Nothing to see here, yet!", 501
-
-@app.route('/Packages(Id=\'<id>\',Version=\'<version>\')')
-def packages(id, version):
-    print id, version
     pkg = Package.query.filter_by(name=id).first()
     if pkg:
         ver = pkg.versions.filter_by(version=version).first()
         if ver:
-            print pkg, ver
+            filename = ver.package.name + '.' + ver.version + '.nupkg'
+            key = bucket.get_key(filename)
+            if key:
+                in_buffer = io.BytesIO()
+                key.get_contents_to_file(in_buffer)
+                in_buffer.seek(0)
+                return send_file(in_buffer, mimetype='application/zip')
+    return 'No package by this name and with this version', 404
+
+@app.route('/Packages(Id=\'<id>\',Version=\'<version>\')')
+def packages(id, version):
+    pkg = Package.query.filter_by(name=id).first()
+    if pkg:
+        ver = pkg.versions.filter_by(version=version).first()
+        if ver:
             env = ver.to_json()
             env['base_url'] = '/'.join(request.base_url.split('/')[:-1])
             renderer = pystache.Renderer()

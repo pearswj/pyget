@@ -1,4 +1,4 @@
-from flask import Flask, Response, request, make_response, send_file
+from flask import Flask, Response, request, make_response, redirect
 from flask.ext.sqlalchemy import SQLAlchemy
 import zipfile, xmltodict, traceback
 from werkzeug import secure_filename
@@ -7,7 +7,6 @@ from datetime import datetime
 import semantic_version as sem_ver
 import pystache
 import hashlib, base64
-import io
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
@@ -216,13 +215,8 @@ def download(id, version):
         ver = pkg.versions.filter_by(version=version).first()
         if ver:
             filename = ver.package.name + '.' + ver.version + '.nupkg'
-            key = bucket.get_key(filename)
-            if key:
-                in_buffer = io.BytesIO()
-                key.get_contents_to_file(in_buffer)
-                in_buffer.seek(0)
-                return send_file(in_buffer, mimetype='application/zip')
-    return 'No package by this name and with this version', 404
+            s3_url = 'https://s3-eu-west-1.amazonaws.com/' + app.config['S3_BUCKET'] + '/' + filename
+            return redirect(s3_url)
 
 @app.route('/Packages(Id=\'<id>\',Version=\'<version>\')')
 def packages(id, version):

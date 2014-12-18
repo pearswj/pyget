@@ -13,9 +13,9 @@ Configure with environment variables, stored in `.env`, for example:
 ```
 # required
 NUGET_API_KEY=somethingsecret
-S3_BUCKET=bucket
-S3_KEY=bla
-S3_SECRET=61a
+S3_BUCKET=bucket # try also 'bucket/folder', e.g. 'example/packages'
+S3_KEY=see https://devcenter.heroku.com/articles/s3#credentials
+S3_SECRET=see S3_KEY
 DATABASE_URL=postgres://localhost/pyget
 
 # optional

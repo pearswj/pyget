@@ -12,11 +12,14 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 db = SQLAlchemy(app)
 
+# settings
 app.config['DEBUG'] = os.environ.get('DEBUG', False)
 app.config['NUGET_API_KEY'] = os.environ.get('NUGET_API_KEY')
 if not app.config['NUGET_API_KEY']:
     raise Exception('NUGET_API_KEY setting is required')
-app.config['S3_BUCKET'] = os.environ.get('S3_BUCKET')
+# s3 bucket
+bucket_tmp = os.environ.get('S3_BUCKET').strip('/').split('/')
+app.config['S3_BUCKET'] = bucket_tmp[0]
 if app.config['S3_BUCKET']:
     import boto
     print 'Connecting to S3...'
@@ -29,6 +32,12 @@ if app.config['S3_BUCKET']:
         bucket = s3.create_bucket(app.config['S3_BUCKET'])
 else:
     raise Exception('S3_BUCKET setting is required')
+# s3 dir
+if len(bucket_tmp) > 1:
+    app.config['S3_DIR'] = '/'.join(bucket_tmp[1:]) + '/'
+else:
+    app.config['S3_DIR'] = ''
+del bucket_tmp
 
 # see http://docs.nuget.org/docs/reference/nuspec-reference
 
@@ -142,7 +151,6 @@ class Version(db.Model):
             'license_url': '',
             'license_names': '',
             'license_report_url': '',
-            'content': "https://s3-eu-west-1.amazonaws.com/{0}/".format(app.config['S3_BUCKET']) + self.package.name + '.' + self.version + '.nupkg',
             'link_edit': 'Packages(Id=\'{0}\',Version=\'{1}\')'.format(self.package.name, self.version)
         }
 
@@ -214,8 +222,10 @@ def download(id, version):
     if pkg:
         ver = pkg.versions.filter_by(version=version).first()
         if ver:
-            filename = ver.package.name + '.' + ver.version + '.nupkg'
-            s3_url = 'https://s3-eu-west-1.amazonaws.com/' + app.config['S3_BUCKET'] + '/' + filename
+            name = ver.package.name + '.' + ver.version + '.nupkg'
+            filename = app.config['S3_DIR'] + secure_filename(name)
+            s3_url = 'https://s3-eu-west-1.amazonaws.com/' + \
+                app.config['S3_BUCKET'] + '/' + filename
             return redirect(s3_url)
 
 @app.route('/Packages(Id=\'<id>\',Version=\'<version>\')')
@@ -250,7 +260,6 @@ def upload():
         # get package id and version from nuspec
         metadata = xml['package']['metadata']
         name = metadata['id'] + '.' + metadata['version'] + '.nupkg'
-        filename = secure_filename(name)
         # check for existance of package
         pkg = Package.query.filter_by(name=metadata['id']).first()
         if not pkg:
@@ -265,7 +274,8 @@ def upload():
                 return 'This package version already exists', 409
         # push package to s3
         file.seek(0) # important
-        key = bucket.new_key(filename)
+        filename = secure_filename(name)
+        key = bucket.new_key(app.config['S3_DIR'] + filename)
         key.set_contents_from_file(file)
         # add the package version to the db
         ver = Version(
@@ -295,7 +305,8 @@ def delete(name, version):
             ver = pkg.versions.filter_by(version=version).first()
             if ver:
                 # remove nupkg from s3
-                key = ver.package.name + '.' + ver.version + '.nupkg'
+                name = ver.package.name + '.' + ver.version + '.nupkg'
+                key = app.config['S3_DIR'] + secure_filename(name)
                 bucket.delete_key(key)
                 # remove package version from db
                 db.session.delete(ver)

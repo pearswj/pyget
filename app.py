@@ -240,12 +240,14 @@ def upload():
         file = request.files['package']
         if not file:
             return 'No package file', 400
-        package = zipfile.ZipFile(file, 'r')
-        nuspec = next((x for x in package.namelist() if x.endswith('.nuspec')), None)
-        if not nuspec:
-            return 'NuSpec file not found in package', 400
-        with package.open(nuspec, 'r') as f:
-            xml = xmltodict.parse(f)
+        # open nupkg as zip archive and get xml from nuspec
+        with zipfile.ZipFile(file, 'r') as package:
+            nuspec = next((x for x in package.namelist() if x.endswith('.nuspec')), None)
+            if not nuspec:
+                return 'NuSpec file not found in package', 400
+            with package.open(nuspec, 'r') as f:
+                xml = xmltodict.parse(f)
+        # get package id and version from nuspec
         metadata = xml['package']['metadata']
         name = metadata['id'] + '.' + metadata['version'] + '.nupkg'
         filename = secure_filename(name)
@@ -262,6 +264,7 @@ def upload():
             if ver:
                 return 'This package version already exists', 409
         # push package to s3
+        file.seek(0) # important
         key = bucket.new_key(filename)
         key.set_contents_from_file(file)
         # add the package version to the db

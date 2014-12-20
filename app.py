@@ -76,7 +76,7 @@ class Version(db.Model):
     created = db.Column(db.DateTime())
     # TODO: dependencies
     # store version spec separately, to be queried at install-time
-    #dependencies = db.relationship('Package')
+    dependencies = db.Column(db.String())
     description = db.Column(db.String())
     # download_count
     # gallery_details_url
@@ -114,6 +114,8 @@ class Version(db.Model):
     def __init__(self, *args, **kwargs):
         super(Version, self).__init__(*args, **kwargs)
         self.created = datetime.utcnow()
+        if not self.dependencies:
+            self.dependencies = ''
 
     def __repr__(self):
         return '<Version %r %r>' % (self.package.name, self.version)
@@ -125,7 +127,7 @@ class Version(db.Model):
             'normalised_version': self.normalized_version,
             'copyright': '',
             'created': self.created.isoformat(),
-            'dependencies': '',
+            'dependencies': self.dependencies,
             'description': '',
             'download_count': 0,
             #'gallery_details_url': None,
@@ -286,6 +288,14 @@ def upload():
             package_hash=base64.b64encode(hashlib.sha512(filename).digest()),
             #tags='',
             )
+        # get and save dependencies
+        if 'dependencies' in metadata and \
+            'dependency' in metadata['dependencies']:
+            deps = metadata['dependencies']['dependency']
+            if type(deps) is not list:
+                deps = [deps]
+            deps_string = '|'.join(['{0}:{1}:'.format(dep['@id'], dep['@version']) for dep in deps])
+            ver.dependencies = deps_string
         db.session.add(ver)
         db.session.commit()
         # TODO: add more metadata to db

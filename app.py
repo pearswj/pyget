@@ -294,7 +294,7 @@ def upload():
             deps = metadata['dependencies']['dependency']
             if type(deps) is not list:
                 deps = [deps]
-            deps_string = '|'.join(['{0}:{1}:'.format(dep['@id'], dep['@version']) for dep in deps])
+            deps_string = '|'.join(['{0}:{1}'.format(dep['@id'], dep['@version']) if '@version' in dep else dep['@id'] for dep in deps])
             ver.dependencies = deps_string
         db.session.add(ver)
         db.session.commit()

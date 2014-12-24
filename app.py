@@ -9,35 +9,62 @@ import pystache
 import hashlib, base64
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+
+# required settings
+settings = [
+    'DATABASE_URL',
+    'PYGET_API_KEY',
+    'PYGET_S3_KEY',
+    'PYGET_S3_SECRET',
+    'PYGET_S3_BUCKET'
+    ]
+for setting in settings:
+    app.config[setting] = os.environ.get(setting)
+    if not app.config[setting]:
+        raise Exception(setting + ' setting is required')
+
+# optional settings
+app.config['DEBUG'] = os.environ.get('DEBUG', False)
+
+# db
+app.config['SQLALCHEMY_DATABASE_URI'] = app.config['DATABASE_URL']
 db = SQLAlchemy(app)
 
-# settings
-app.config['DEBUG'] = os.environ.get('DEBUG', False)
-app.config['NUGET_API_KEY'] = os.environ.get('NUGET_API_KEY')
-if not app.config['NUGET_API_KEY']:
-    raise Exception('NUGET_API_KEY setting is required')
+from sqlalchemy_utils import database_exists
+from sqlalchemy.exc import OperationalError
+try:
+    if not database_exists(app.config['DATABASE_URL']):
+        raise Exception('No database found at ' + app.config['DATABASE_URL'])
+except OperationalError:
+    raise Exception('Are you sure the db exists and/or is running?')
+
 # s3 bucket
-bucket_tmp = os.environ.get('S3_BUCKET').strip('/').split('/')
-app.config['S3_BUCKET'] = bucket_tmp[0]
-if app.config['S3_BUCKET']:
-    import boto
+import boto
+
+def init_s3(key, secret, bucket_name):
+    bucket_tmp = bucket_name.strip('/').split('/')
+    bucket_string = bucket_tmp[0]
     print 'Connecting to S3...'
-    s3 = boto.connect_s3(os.environ.get('S3_KEY'), os.environ.get('S3_SECRET'))
+    s3 = boto.connect_s3(key, secret)
     try:
-        bucket = s3.get_bucket(app.config['S3_BUCKET'])
+        bucket = s3.get_bucket(bucket_string)
         print 'Connected to S3!'
     except boto.exception.S3ResponseError as e:
         print 'Bucket not found so I\'m creating one for you'
-        bucket = s3.create_bucket(app.config['S3_BUCKET'])
-else:
-    raise Exception('S3_BUCKET setting is required')
-# s3 dir
-if len(bucket_tmp) > 1:
-    app.config['S3_DIR'] = '/'.join(bucket_tmp[1:]) + '/'
-else:
-    app.config['S3_DIR'] = ''
-del bucket_tmp
+        bucket = s3.create_bucket(bucket_string)
+    # s3 dir
+    if len(bucket_tmp) > 1:
+        path_string = '/'.join(bucket_tmp[1:]) + '/'
+    else:
+        path_string = ''
+    return bucket, (bucket_string, path_string)
+
+bucket, path = init_s3(
+    app.config['PYGET_S3_KEY'],
+    app.config['PYGET_S3_SECRET'],
+    app.config['PYGET_S3_BUCKET']
+    )
+app.config['PYGET_S3_BUCKET'], app.config['PYGET_S3_PATH'] = path
 
 # see http://docs.nuget.org/docs/reference/nuspec-reference
 
@@ -74,9 +101,7 @@ class Version(db.Model):
     normalized_version = db.Column(db.String())
     copyright = db.Column(db.String())
     created = db.Column(db.DateTime())
-    # TODO: dependencies
-    # store version spec separately, to be queried at install-time
-    dependencies = db.Column(db.String())
+    dependencies = db.Column(db.String()) # TODO: dependencies as relationships
     description = db.Column(db.String())
     # download_count
     # gallery_details_url
@@ -226,9 +251,9 @@ def download(id, version):
         ver = pkg.versions.filter_by(version=version).first()
         if ver:
             name = ver.package.name + '.' + ver.version + '.nupkg'
-            filename = app.config['S3_DIR'] + secure_filename(name)
+            filename = app.config['PYGET_S3_PATH'] + secure_filename(name)
             s3_url = 'https://s3-eu-west-1.amazonaws.com/' + \
-                app.config['S3_BUCKET'] + '/' + filename
+                app.config['PYGET_S3_BUCKET'] + '/' + filename
             return redirect(s3_url)
 
 @app.route('/Packages(Id=\'<id>\',Version=\'<version>\')')
@@ -248,7 +273,7 @@ def packages(id, version):
 def upload():
     try:
         key = request.headers.get('X_NUGET_APIKEY')
-        if not key or key != app.config['NUGET_API_KEY']:
+        if not key or key != app.config['PYGET_API_KEY']:
             return 'Invalid or missing API key', 403
         file = request.files['package']
         if not file:
@@ -278,7 +303,7 @@ def upload():
         # push package to s3
         file.seek(0) # important
         filename = secure_filename(name)
-        key = bucket.new_key(app.config['S3_DIR'] + filename)
+        key = bucket.new_key(app.config['PYGET_S3_PATH'] + filename)
         key.set_contents_from_file(file)
         # add the package version to the db
         sem_ver_str, prerelease = coerce_version(metadata['version'])
@@ -311,7 +336,7 @@ def upload():
 def delete(name, version):
     try:
         key = request.headers.get('X_NUGET_APIKEY')
-        if not key or key != app.config['NUGET_API_KEY']:
+        if not key or key != app.config['PYGET_API_KEY']:
             return 'Invalid or missing API key', 403
         pkg = Package.query.filter_by(name=name).first()
         if pkg:
@@ -319,7 +344,7 @@ def delete(name, version):
             if ver:
                 # remove nupkg from s3
                 name = ver.package.name + '.' + ver.version + '.nupkg'
-                key = app.config['S3_DIR'] + secure_filename(name)
+                key = app.config['PYGET_S3_PATH'] + secure_filename(name)
                 bucket.delete_key(key)
                 # remove package version from db
                 db.session.delete(ver)

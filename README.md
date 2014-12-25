@@ -14,11 +14,11 @@ Configure with environment variables, stored in `.env`, for example:
 
 ```
 # .env
-NUGET_API_KEY=somethingsecret
-S3_BUCKET=bucket # try also 'bucket/folder', e.g. 'example/packages'
-S3_KEY=see https://devcenter.heroku.com/articles/s3#credentials
-S3_SECRET=see S3_KEY
 DATABASE_URL=postgres://localhost/pyget
+PYGET_API_KEY=somethingsecret
+PYGET_S3_KEY=see https://devcenter.heroku.com/articles/s3#credentials
+PYGET_S3_SECRET=see S3_KEY
+PYGET_S3_BUCKET=bucket # try also 'bucket/folder', e.g. 'example/packages'
 ```
 
 ### Heroku
@@ -42,7 +42,8 @@ $ heroku pg:promote HEROKU_POSTGRESQL_<colour>
 Set the necessary environment variables, e.g.
 
 ```
-$ heroku config:set NUGET_API_KEY=somethingsecret
+$ heroku config:set PYGET_API_KEY=somethingsecret
+...
 ```
 
 Finally push the app to Heroku and initialise the database.

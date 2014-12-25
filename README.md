@@ -51,8 +51,8 @@ Finally push the app to Heroku and initialise the database.
 ```
 $ git push heroku master
 $ heroku run python
->>> from app import db
->>> db.create_all()
+>>> from pyget import init_db
+>>> init_db()
 ```
 
 

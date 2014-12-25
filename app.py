@@ -346,7 +346,9 @@ def find():
     elif 'searchTerm' in request.args:
         name = request.args['searchTerm'].strip('\'')
         if name:
-            pkgs = Package.query.filter_by(name=name).all() # TODO: partials
+            pkgs = Package.query.filter(
+                Package.name.like('%' + name + '%')
+                ).all()
         else:
             pkgs = Package.query.all()
     #print pkgs

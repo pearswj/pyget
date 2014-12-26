@@ -191,9 +191,10 @@ def coerce_version(ver_str):
     tmp = ''.join(tmp)
 
     try:
-        return str(sem_ver.Version.coerce(tmp))
+        v = sem_ver.Version.coerce(tmp)
+        return str(v), bool(v.prerelease)
     except:
-        return None
+        raise Exception('Could not coerce semantic version from ' + ver_str)
 
 @app.route('/', methods=['GET'])
 def index():
@@ -280,12 +281,14 @@ def upload():
         key = bucket.new_key(app.config['S3_DIR'] + filename)
         key.set_contents_from_file(file)
         # add the package version to the db
+        sem_ver_str, prerelease = coerce_version(metadata['version'])
         ver = Version(
             package=pkg,
             version=metadata['version'],
-            normalized_version=coerce_version(metadata['version']),
+            normalized_version=sem_ver_str,
             package_size=os.fstat(file.fileno()).st_size,
             package_hash=base64.b64encode(hashlib.sha512(filename).digest()),
+            is_prerelease=prerelease
             #tags='',
             )
         # get and save dependencies
@@ -342,7 +345,7 @@ def find():
     }
     if 'id' in request.args:
         name = request.args['id'].strip('\'')
-        pkgs = Package.query.filter_by(name=name).all()
+        pkgs = Package.query.filter_by(name=name).all() # TODO: use .one()
     elif 'searchTerm' in request.args:
         name = request.args['searchTerm'].strip('\'')
         if name:
@@ -351,11 +354,13 @@ def find():
                 ).all()
         else:
             pkgs = Package.query.all()
-    #print pkgs
     if pkgs and len(pkgs) > 0:
         env['entries'] = []
         for pkg in pkgs:
-            env['entries'].extend([ver.to_json() for ver in pkg.versions.all()])
+            vers = pkg.versions
+            if request.args.get('includePrerelease', 'false') == 'false':
+                vers = vers.filter(Version.is_prerelease is not True)
+            env['entries'].extend([ver.to_json() for ver in vers.all()])
     renderer = pystache.Renderer()
     xml = renderer.render_path('feed.mustache', env)
     return Response(xml, mimetype='application/atom+xml')
